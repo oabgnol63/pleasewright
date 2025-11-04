@@ -6,16 +6,32 @@ from playwright.async_api import async_playwright, expect, Page, Browser
 _playwright = None
 _browser = None
  
-async def init_browser() -> Optional[Browser]:
+async def init_browser(browser_type) -> Optional[Browser]:
     try:
         global _playwright, _browser
         if _browser is None:
             _playwright = await async_playwright().start()
-            _browser = await _playwright.chromium.launch(
-                headless=False,
-                executable_path="C:/Program Files/Google/Chrome/Application/chrome.exe",
-                slow_mo=500,
-            )
+            match browser_type:
+                case 'chrome':
+                    _browser = await _playwright.chromium.launch(
+                        headless=False,
+                        executable_path="C:/Program Files/Google/Chrome/Application/chrome.exe",
+                        slow_mo=500,
+                    )
+                case 'msedge':
+                    _browser = await _playwright.chromium.launch(
+                        headless=False,
+                        executable_path="C:/Program Files/Google/Chrome/Application/chrome.exe",
+                        slow_mo=500,
+                    )
+                case 'firefox':
+                    _browser = await _playwright.firefox.launch(
+                        headless=False,
+                        executable_path="C:/Program Files/Mozilla Firefox/firefox.exe",
+                        slow_mo=500,
+                    )
+                case _:
+                    raise ValueError(f"Unsupported browser type: {browser_type}")
         return _browser
     except Exception as e:
         raise e
@@ -77,39 +93,63 @@ class BasePage:
         else:
             raise ValueError("Page not initialized")
 
-    async def text_box_interact(self, name: str, action: str, value: str = "", **kwargs: Any) -> None:
+    async def text_box_interact(
+            self, 
+            name: str, 
+            action: str, 
+            value: str = "", 
+            locator_kwargs: dict = {}, 
+            fill_kwargs: dict = {},
+            click_kwargs: dict = {},
+            expect_kwargs: dict = {}
+    ) -> None:
+
         if self.page:
-            textbox = self.page.get_by_role("textbox", name=name, **kwargs)
+            textbox = self.page.get_by_role("textbox", name=name, **locator_kwargs)
             if not textbox:
                 raise ValueError(f"Textbox with name '{name}' not found")
             match action:
                 case "fill":
-                    await textbox.fill(value, **kwargs)
+                    await textbox.fill(value, **fill_kwargs)
                 case "click":
-                    await textbox.click(**kwargs)
+                    await textbox.click(**click_kwargs)
                 case "expect_value":
-                    await expect(textbox).to_have_value(value, **kwargs)
+                    await expect(textbox).to_have_value(value, **expect_kwargs)
                 case _:
                     raise ValueError(f"Unsupported action '{action}' for textbox")
         else:
             raise RuntimeError("Page not initialized")
                 
-    async def button_interact(self, name: str, action: str, value: str = "", **kwargs: Any) -> None:
+    async def button_interact(
+            self, 
+            name: str, 
+            action: str, 
+            value: str = "", 
+            locator_kwargs: dict = {}, 
+            click_kwargs: dict = {},
+    ) -> None:
+
         if self.page:
-            button = self.page.get_by_role("button", name=name, **kwargs)
+            button = self.page.get_by_role("button", name=name, **locator_kwargs)
             if not button:
                 raise ValueError(f"Textbox with name '{name}' not found")
             match action:
                 case "click":
-                    await button.click(**kwargs)
+                    await button.click(**click_kwargs)
                 case _:
                     raise ValueError("Invalid button action")
         else:
             raise RuntimeError("Page not initialized")
 
-    async def expect_text_visible(self, text: str, **kwargs: Any) -> None:
+    async def expect_text_visible(
+            self, text: str, 
+            exact: bool | None = None, 
+            visible: bool | None = None,
+            timeout: float | None = None
+    ) -> None:
+
         if self.page:
-            await expect(self.page.get_by_text(text, **kwargs)).to_be_visible(**kwargs)
+            await expect(self.page.get_by_text(text, exact=exact)).to_be_visible(visible=visible, timeout=timeout)
         else:
             raise RuntimeError("Page not initialized")
 
@@ -121,7 +161,7 @@ class BasePage:
 
     async def press_key(self, keys: str, **kwargs) -> None:
         if self.page:
-            await self.page.keyboard.press(keys)
+            await self.page.keyboard.press(keys, **kwargs)
         else:
             raise RuntimeError("Page not initialized")
  
@@ -146,9 +186,29 @@ class LoginPage(BasePage):
  
 class TextBoxPage(BasePage):
     url = "https://demoqa.com/text-box"
- 
+    fullname_ph = "Full Name"
+    email_ph = "name@example.com"
+    current_address_ph = "Current Address"
     def __init__(self):
         super().__init__(url=self.url)
+    
+    async def fill_name(self, name: str) -> None:
+        if self.page:
+            await self.text_box_interact(self.fullname_ph, "fill", name)
+        else:
+            raise RuntimeError("Page not initialized")
+        
+    async def fill_email(self, email: str) -> None:
+        if self.page:
+            await self.text_box_interact(self.email_ph, "fill", email)
+        else:
+            raise RuntimeError("Page not initialized")
+        
+    async def fill_address(self, address: str) -> None:
+        if self.page:
+            await self.text_box_interact(self.current_address_ph, "fill", address)
+        else:
+            raise RuntimeError("Page not initialized")
    
 class DragPage(BasePage):
     url = "https://demoqa.com/droppable"

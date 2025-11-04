@@ -1,3 +1,4 @@
+import pytest
 import pytest_asyncio
 from typing import AsyncGenerator
 from playwright.async_api import async_playwright, APIRequestContext
@@ -7,9 +8,20 @@ from demoqa import (
     close_browser
 )
 
-@pytest_asyncio.fixture(scope="function", autouse=True)
-async def browser():
-    await init_browser()
+# def pytest_addoption(parser):
+#     parser.addoption(
+#         "--browser",
+#         action="store",
+#         default=None,
+#         help="Browser to run tests on: chrome, edge, or firefox"
+#     )
+
+@pytest_asyncio.fixture(scope="function", params=['chrome', 'msedge', 'firefox'], autouse=True)
+async def browser(request):
+    browser_channel = request.config.getoption("browser_channel")
+    if browser_channel is not None and browser_channel != request.param:
+        pytest.skip()
+    await init_browser(request.param)
     yield
     await close_browser()
 

@@ -16,20 +16,23 @@ from demoqa import (
 
 class TestDemoQA:
     @pytest.mark.asyncio
+    @pytest.mark.smoke
     async def test_login_success(self):
         async with LoginPage() as lp:
             await lp.login(lp.username, lp.password)
             await lp.expect_text_visible("oabgnol63")
 
     @pytest.mark.asyncio
+    @pytest.mark.regression
+    @pytest.mark.skip_browser("firefox")
     async def test_input(self):
         async with TextBoxPage() as tb:
             if not tb.page:
                 raise RuntimeError("Page not initialized")
             await tb.expect_title()
-            await tb.text_box_interact("Full Name", "fill", "Aa")
-            await tb.text_box_interact(name="name@example.com", action="fill" , value="Bb1@test.com")
-            await tb.text_box_interact("Current Address", "fill", "Cc2#")
+            await tb.fill_name("Aa")
+            await tb.fill_email("Bb1@test.com")
+            await tb.fill_address("Cc2#")
             await tb.page.locator("#permanentAddress").fill("Dd3$")
             await tb.button_interact(name="Submit", action="click")
             await tb.expect_text_visible("Name:Aa")
@@ -112,9 +115,9 @@ class TestDemoQA:
             await cb.expect_title()
             await cb.page.get_by_role('button', name='Toggle').click()
             await cb.page.locator("label").filter(has_text="Downloads").get_by_role("img").first.click()
-            await expect(cb.page.get_by_text("downloads", exact=True)).to_be_visible()
-            await expect(cb.page.get_by_text("wordFile", exact=True)).to_be_visible()
-            await expect(cb.page.get_by_text("excelFile", exact=True)).to_be_visible()
+            await cb.expect_text_visible("downloads", exact=True)
+            await cb.expect_text_visible("wordFile", exact=True)
+            await cb.expect_text_visible("excelFile", exact=True)
 
     @pytest.mark.asyncio
     async def test_radiobutton(self):
@@ -123,7 +126,7 @@ class TestDemoQA:
                 raise RuntimeError("Page not initialized")
             await rp.expect_title()
             await rp.page.get_by_text("Yes").click()
-            await expect(rp.page.get_by_text("You have selected Yes", exact=True)).to_be_visible()
+            await rp.expect_text_visible("You have selected Yes", exact=True)
 
     @pytest.mark.asyncio
     async def test_multipage(self):
