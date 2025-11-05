@@ -1,3 +1,4 @@
+import os
 from typing import Literal, Any
 from typing import Optional
 from playwright.async_api import async_playwright, expect, Page, Browser
@@ -5,10 +6,11 @@ from playwright.async_api import async_playwright, expect, Page, Browser
 # global browser instance
 _playwright = None
 _browser = None
+_context = None
  
-async def init_browser(browser_type) -> Optional[Browser]:
+async def init_browser(browser_type: str, slow: int | None = None, video: str | None = None) -> Optional[Browser]:
     try:
-        global _playwright, _browser
+        global _playwright, _browser, _context
         if _browser is None:
             _playwright = await async_playwright().start()
             match browser_type:
@@ -16,35 +18,58 @@ async def init_browser(browser_type) -> Optional[Browser]:
                     _browser = await _playwright.chromium.launch(
                         headless=False,
                         executable_path="C:/Program Files/Google/Chrome/Application/chrome.exe",
-                        slow_mo=500,
+                        slow_mo=slow,
                     )
                 case 'msedge':
                     _browser = await _playwright.chromium.launch(
                         headless=False,
                         executable_path="C:/Program Files/Google/Chrome/Application/chrome.exe",
-                        slow_mo=500,
+                        slow_mo=slow,
                     )
                 case 'firefox':
                     _browser = await _playwright.firefox.launch(
                         headless=False,
                         executable_path="C:/Program Files/Mozilla Firefox/firefox.exe",
-                        slow_mo=500,
+                        slow_mo=slow,
                     )
                 case _:
                     raise ValueError(f"Unsupported browser type: {browser_type}")
+                
+        _context = await _browser.new_context(
+            record_video_dir="test-results/" if video else None,
+            # record_video_size={"width": 1280, "height": 720} if video else None
+        )
+        await _context.tracing.start(screenshots=True, snapshots=True, sources=True)
         return _browser
     except Exception as e:
         raise e
  
-async def close_browser() -> None:
+async def close_browser(keep_video: bool = False) -> None:
     try:
-        global _playwright, _browser
+        global _playwright, _browser, _context
+        if _context:
+            await _context.tracing.stop(path="trace.zip")
+            video_paths = []
+            if not keep_video:
+                for page in _context.pages:
+                    if page.video:
+                        video_path = await page.video.path()
+                        video_paths.append(video_path)
+            await _context.close()
+            if not keep_video and video_paths:
+                for video_path in video_paths:
+                    try:
+                        if os.path.exists(video_path):
+                            os.remove(video_path)
+                    except Exception:
+                        pass
         if _browser:
             await _browser.close()
         if _playwright:
             await _playwright.stop()
         _browser = None
         _playwright = None
+        _context = None
     except Exception as e:
         raise e
  
@@ -52,6 +77,11 @@ def get_browser() -> Browser:
     if _browser is None:
         raise RuntimeError("Browser not initialized")
     return _browser
+
+def get_context():
+    if _context is None:
+        raise RuntimeError("Context not initialized")
+    return _context
  
  
 class BasePage:    
@@ -64,15 +94,15 @@ class BasePage:
         await self.navigate()
         return self
  
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
-        await self.close_page()
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> Any:
+        return None
  
     async def navigate(self, url: str | None = None,
                        timeout: int = 60000,
                        wait_until: Literal["load", "domcontentloaded", "networkidle", "commit"] = "commit") -> Page | None:
         try:
-            browser = get_browser()
-            self.page = await browser.new_page()
+            context = get_context()
+            self.page = await context.new_page()
             target_url = url or self.url
             if target_url:
                 await self.page.goto(target_url, timeout=timeout, wait_until=wait_until)

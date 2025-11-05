@@ -1,3 +1,5 @@
 *env/
 __pycache__
 *_cache
+trace.zip
+test-results

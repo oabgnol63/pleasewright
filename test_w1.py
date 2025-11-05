@@ -16,15 +16,12 @@ from demoqa import (
 
 class TestDemoQA:
     @pytest.mark.asyncio
-    @pytest.mark.smoke
     async def test_login_success(self):
         async with LoginPage() as lp:
             await lp.login(lp.username, lp.password)
             await lp.expect_text_visible("oabgnol63")
 
     @pytest.mark.asyncio
-    @pytest.mark.regression
-    @pytest.mark.skip_browser("firefox")
     async def test_input(self):
         async with TextBoxPage() as tb:
             if not tb.page:
