@@ -2,3 +2,5 @@ playwright
 pytest
 pytest-xdist
 pytest-asyncio
+pytest-playwright
+pytest-retry

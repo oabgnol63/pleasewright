@@ -1,4 +1,5 @@
 import pytest
+import json
 import pytest_asyncio
 from typing import AsyncGenerator
 from playwright.async_api import async_playwright, APIRequestContext
@@ -11,8 +12,18 @@ from demoqa import (
 def pytest_addoption(parser):
 
     parser.addoption("--record-video", action="store", choices=["on", "failure"], default=None)
-
     parser.addoption("--slow", action="store", default=None, help="for slow_mo")
+
+def pytest_generate_tests(metafunc):
+    if 'test_data' in metafunc.fixturenames:
+        data_file = metafunc.module.__file__[:-2] + 'json'
+        try:
+            with open(data_file) as f:
+                data = json.load(f)
+            if isinstance(data, list):
+                metafunc.parametrize('test_data', data, indirect=True)
+        except FileNotFoundError:
+            pass
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
@@ -60,3 +71,14 @@ async def api_request_context() -> AsyncGenerator[APIRequestContext, None]:
         )
         yield request_context
         await request_context.dispose()
+
+@pytest.fixture(scope="function")
+def test_data(request):
+    if hasattr(request, 'param'):
+        yield request.param
+    else:
+        data_file = request.module.__file__[:-2] + 'json'
+        with open(data_file) as f:
+            data = json.load(f)
+        yield data
+

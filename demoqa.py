@@ -1,14 +1,19 @@
 import os
 from typing import Literal, Any
 from typing import Optional
-from playwright.async_api import async_playwright, expect, Page, Browser
+from playwright.async_api import async_playwright, expect, Page, Browser, HttpCredentials
  
 # global browser instance
 _playwright = None
 _browser = None
 _context = None
  
-async def init_browser(browser_type: str, slow: int | None = None, video: str | None = None) -> Optional[Browser]:
+async def init_browser(
+        browser_type: str, 
+        slow: int | None = None, 
+        video: str | None = None,
+        http_auth: dict | None = None
+    ) -> Optional[Browser]:
     try:
         global _playwright, _browser, _context
         if _browser is None:
@@ -33,12 +38,12 @@ async def init_browser(browser_type: str, slow: int | None = None, video: str | 
                         slow_mo=slow,
                     )
                 case _:
-                    raise ValueError(f"Unsupported browser type: {browser_type}")
-                
+                    raise ValueError(f"Unsupported browser type: {browser_type}")   
         _context = await _browser.new_context(
-            record_video_dir="test-results/" if video else None,
-            # record_video_size={"width": 1280, "height": 720} if video else None
-        )
+                record_video_dir="test-results/" if video else None,
+                # record_video_size={"width": 1280, "height": 720} if video else None,
+                http_credentials=HttpCredentials(**http_auth) if http_auth else None,  
+            )
         await _context.tracing.start(screenshots=True, snapshots=True, sources=True)
         return _browser
     except Exception as e:
