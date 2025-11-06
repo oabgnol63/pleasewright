@@ -110,11 +110,19 @@ class BasePage:
             self.page = await context.new_page()
             target_url = url or self.url
             if target_url:
-                await self.page.goto(target_url, timeout=timeout, wait_until=wait_until)
+                await self.goto(target_url, timeout=timeout, wait_until=wait_until)
             return self.page
         except Exception as e:
             raise e
-   
+
+    async def goto(self, url: str,
+                   timeout: int = 60000,
+                   wait_until: Literal["load", "domcontentloaded", "networkidle", "commit"] = "commit") -> None:
+        if self.page:
+            await self.page.goto(url, timeout=timeout, wait_until=wait_until)
+        else:
+            raise RuntimeError("Page not initialized")
+
     async def close_page(self) -> None:
         if self.page:
             await self.page.close()

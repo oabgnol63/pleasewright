@@ -31,6 +31,13 @@ def pytest_runtest_makereport(item, call):
     rep = outcome.get_result()
     setattr(item, f"rep_{rep.when}", rep)
 
+@pytest_asyncio.fixture(scope="session", params=['chrome', 'msedge', 'firefox'], autouse=True)
+async def session_data():
+    return {
+        "username": "test",
+        "password": "Exploit99*"
+    },
+
 @pytest_asyncio.fixture(scope="function", params=['chrome', 'msedge', 'firefox'], autouse=True)
 async def browser(request):
     markers = request.node.own_markers
