@@ -12,7 +12,8 @@ async def init_browser(
         browser_type: str, 
         slow: int | None = None, 
         video: str | None = None,
-        http_auth: dict | None = None
+        http_auth: dict | None = None,
+        storage_state: str | None = None
     ) -> Optional[Browser]:
     try:
         global _playwright, _browser, _context
@@ -39,11 +40,14 @@ async def init_browser(
                     )
                 case _:
                     raise ValueError(f"Unsupported browser type: {browser_type}")   
-        _context = await _browser.new_context(
-                record_video_dir="test-results/" if video else None,
-                # record_video_size={"width": 1280, "height": 720} if video else None,
-                http_credentials=HttpCredentials(**http_auth) if http_auth else None,  
-            )
+        
+        context_options = {
+            "record_video_dir": "test-results/" if video else None,
+            "http_credentials": HttpCredentials(**http_auth) if http_auth else None,
+        }
+        if storage_state:
+            context_options["storage_state"] = storage_state
+        _context = await _browser.new_context(**context_options)
         await _context.tracing.start(screenshots=True, snapshots=True, sources=True)
         return _browser
     except Exception as e:
@@ -87,7 +91,6 @@ def get_context():
     if _context is None:
         raise RuntimeError("Context not initialized")
     return _context
- 
  
 class BasePage:    
     def __init__(self, url: str = "") -> None:
@@ -218,7 +221,7 @@ class LoginPage(BasePage):
  
     def __init__(self):
         super().__init__(url=self.url)
- 
+
     async def login(self, username, password):
         if self.page:
             await self.page.get_by_role("textbox", name=self.ph_username).fill(username)

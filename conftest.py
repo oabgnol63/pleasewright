@@ -9,6 +9,17 @@ from demoqa import (
     close_browser
 )
 
+SESSION_DATA = [
+    {
+        "username": "test",
+        "password": "Exploit99*"
+    },
+    {
+        "username": "test2",
+        "password": "Exploit99*"
+    }
+]
+
 def pytest_addoption(parser):
 
     parser.addoption("--record-video", action="store", choices=["on", "failure"], default=None)
@@ -24,6 +35,8 @@ def pytest_generate_tests(metafunc):
                 metafunc.parametrize('test_data', data, indirect=True)
         except FileNotFoundError:
             pass
+    if 'session_data' in metafunc.fixturenames:
+        metafunc.parametrize('session_data', SESSION_DATA, indirect=True)
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
@@ -31,12 +44,9 @@ def pytest_runtest_makereport(item, call):
     rep = outcome.get_result()
     setattr(item, f"rep_{rep.when}", rep)
 
-@pytest_asyncio.fixture(scope="session", params=['chrome', 'msedge', 'firefox'], autouse=True)
-async def session_data():
-    return {
-        "username": "test",
-        "password": "Exploit99*"
-    },
+@pytest.fixture(scope="session")
+def session_data():
+    yield SESSION_DATA
 
 @pytest_asyncio.fixture(scope="function", params=['chrome', 'msedge', 'firefox'], autouse=True)
 async def browser(request):
@@ -48,15 +58,21 @@ async def browser(request):
     elif request.param in skip_browser:
         pytest.skip()
     else:
+        storage_state = None
+        if 'authenticated_state' in request.fixturenames:
+            storage_state = request.getfixturevalue('authenticated_state')
+        
         config = {
             "browser_type": request.param,
             "video": request.config.getoption("--record-video"),
             "slow": request.config.getoption("--slow"),
+            "storage_state": storage_state
         }
         await init_browser(**config)
+        
         yield
         
-        # Determine if we should keep the video
+        # keep video or not
         video_option = request.config.getoption("--record-video")
         keep_video = False
         if video_option == "on":
@@ -81,11 +97,29 @@ async def api_request_context() -> AsyncGenerator[APIRequestContext, None]:
 
 @pytest.fixture(scope="function")
 def test_data(request):
-    if hasattr(request, 'param'):
-        yield request.param
-    else:
-        data_file = request.module.__file__[:-2] + 'json'
-        with open(data_file) as f:
-            data = json.load(f)
-        yield data
+    yield request.param
 
+@pytest_asyncio.fixture(scope="session")
+async def authenticated_state():
+    # temp browser to get auth state
+    temp_playwright = await async_playwright().start()
+    temp_browser = await temp_playwright.chromium.launch(
+        headless=False,
+        executable_path="C:/Program Files/Google/Chrome/Application/chrome.exe"
+    )
+    temp_context = await temp_browser.new_context()
+    temp_page = await temp_context.new_page()
+    
+    await temp_page.goto("https://demoqa.com/login")
+    await temp_page.get_by_role("textbox", name="UserName").fill("oabgnol63")
+    await temp_page.get_by_role("textbox", name="Password").fill("Exploit99*")
+    await temp_page.click("button#login")
+    await temp_page.wait_for_selector(f"text=oabgnol63", timeout=10000)
+    
+    auth_file = "state.json"
+    await temp_context.storage_state(path=auth_file)
+    await temp_context.close()
+    await temp_browser.close()
+    await temp_playwright.stop()
+    
+    yield auth_file
