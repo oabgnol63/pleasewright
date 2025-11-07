@@ -61,11 +61,14 @@ async def browser(request):
         storage_state = None
         if 'authenticated_state' in request.fixturenames:
             storage_state = request.getfixturevalue('authenticated_state')
-        
+        if request.config.getoption('slow') is not None:
+            slow = float(request.config.getoption('slow'))
+        else:
+            slow = None
         config = {
             "browser_type": request.param,
             "video": request.config.getoption("--record-video"),
-            "slow": request.config.getoption("--slow"),
+            "slow": slow,
             "storage_state": storage_state
         }
         await init_browser(**config)
@@ -110,7 +113,7 @@ async def authenticated_state():
     temp_context = await temp_browser.new_context()
     temp_page = await temp_context.new_page()
     
-    await temp_page.goto("https://demoqa.com/login")
+    await temp_page.goto("https://demoqa.com/login", wait_until='commit')
     await temp_page.get_by_role("textbox", name="UserName").fill("oabgnol63")
     await temp_page.get_by_role("textbox", name="Password").fill("Exploit99*")
     await temp_page.click("button#login")

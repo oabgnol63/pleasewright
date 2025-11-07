@@ -16,6 +16,6 @@ pytest test_w2.py -sv -n 4 --log-cli-level=INFO
 # To run test_w2_2.py: (tags test)
 pytest test_w2_2.py -sv --log-cli-level=INFO -m smoke/regression
 trace: playwright show-trace trace.zip
-video: pytest test_w2_2.py -sv --log-cli-level=INFO -m smoke/regression --record-video on/failure --slow 500
+video/slow-mo test: pytest test_w2_2.py -sv --log-cli-level=INFO -m smoke/regression --record-video on/failure --slow 500
 dataset: pytest test_w2_2.py -sv --log-cli-level=INFO -k "test_multi_login"
 auth: pytest test_w2_2.py -sv --log-cli-level=INFO -k "test_http_auth"

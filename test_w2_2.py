@@ -1,4 +1,9 @@
 
+###################################
+## 
+# Please read README file for cmd to run test
+##
+###################################
 import pytest
 from playwright.async_api import expect
 from demoqa import (

@@ -10,7 +10,7 @@ _context = None
  
 async def init_browser(
         browser_type: str, 
-        slow: int | None = None, 
+        slow: float | None = None, 
         video: str | None = None,
         http_auth: dict | None = None,
         storage_state: str | None = None
