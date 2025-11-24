@@ -1,4 +1,5 @@
 import os
+import random
 from typing import Literal, Any
 from typing import Optional
 from playwright.async_api import async_playwright, expect, Page, Browser, HttpCredentials
@@ -327,4 +328,116 @@ class CalendarPage(BasePage):
  
     def __init__(self):
         super().__init__(url=self.url)
+
+class BooksPage(BasePage):
+    url = "https://demoqa.com/books"
+
+    title_header = "Title"
+    num_rows_per_page_dropdown = "rows per page"
+    row_selector = "div.rt-tr-group"
+    next_page_text = "Next"
+    current_page_spinbutton_name = "jump to page"
+    book_filter_xpath = "//div[@class='action-buttons']"
  
+    def __init__(self):
+        super().__init__(url=self.url)
+
+    async def sort_by_title(self, order: str) -> str:
+        match order:
+            case "ascending":
+                await self.page.get_by_text(self.title_header).click()
+            case "descending":
+                await self.page.get_by_text(self.title_header).click(click_count=2)
+            case _:
+                raise ValueError(f"Unsupported sort order: {order}")
+
+    async def verify_sort(self, column: str, order: str) -> bool:
+        if not self.page:
+            raise RuntimeError("Page not initialized")
+        
+        # Get the parent, verify the class has -sort-asc or -sort-desc
+        column_header = self.page.get_by_text(column).locator("..").first
+        
+        classes = await column_header.get_attribute("class")
+        
+        if order == "ascending":
+            return "-sort-asc" in classes if classes else False
+        elif order == "descending":
+            return "-sort-desc" in classes if classes else False
+        
+        return False
+    
+
+    async def set_row_per_page(self, number: int) -> None:
+        if not self.page:
+            raise RuntimeError("Page not initialized")
+        
+        await self.page.get_by_label(self.num_rows_per_page_dropdown).select_option(str(number))
+
+    async def verify_num_pages(self, expected_number: int) -> bool:
+        if not self.page:
+            raise RuntimeError("Page not initialized")
+        
+        total_pages_element = self.page.locator("span.-totalPages")
+        total_pages_text = await total_pages_element.text_content()
+        if not total_pages_text:
+            raise RuntimeError("Could not find total pages information")
+        
+        total_pages = int(total_pages_text.strip())
+        
+        return total_pages == expected_number
+
+    async def verify_num_rows(self, expected_number: int) -> bool:
+        if not self.page:
+            raise RuntimeError("Page not initialized")
+        
+        rows = self.page.locator(self.row_selector)
+        row_count = await rows.count()
+        return row_count == expected_number
+    
+    async def click_next_page_button(self, times: int = 1) -> None:
+        if not self.page:
+            raise RuntimeError("Page not initialized")
+        
+        next_button = self.page.get_by_role("button", name=self.next_page_text)
+        for _ in range(times):
+            await next_button.click()
+
+    async def verify_current_page(self, expected_page: int) -> None:
+        if not self.page:
+            raise RuntimeError("Page not initialized")
+        
+        current_page_input = self.page.get_by_role("spinbutton", name=self.current_page_spinbutton_name)
+        await expect(current_page_input).to_have_value(str(expected_page))
+
+    async def verify_filter_by_title(self, title: str) -> None:
+        if not self.page:
+            raise RuntimeError("Page not initialized")
+        
+        filter_section = self.page.locator(self.book_filter_xpath)
+        row_count = await filter_section.count()
+
+        assert row_count == 1, f"Expected 1 row in filter section for title '{title}', but found {row_count}"
+        await expect(filter_section).to_have_text(title)
+
+class RegisterPage(BasePage):
+    url = "https://demoqa.com/register"
+    first_name_tb = "First Name"
+    last_name_tb = "Last Name"
+    username_tb = "UserName"
+    pwd_tb = "Password"
+    verify_box_tb = 'iframe[name=\"a-22qw0hdpmj3k\"]'
+    verify_name = "I'm not a robot"
+ 
+    def __init__(self):
+        super().__init__(url=self.url)
+
+    async def reg_new_user(self, user: dict) -> dict:
+
+        await self.text_box_interact(self.first_name_tb, "fill", user["firstName"])
+        await self.text_box_interact(self.last_name_tb, "fill", user["lastName"])
+        await self.text_box_interact(self.username_tb, "fill", user["userName"])
+        await self.text_box_interact(self.pwd_tb, "fill", user["password"])
+        await self.page.locator(self.verify_box_tb).content_frame.get_by_role("checkbox", name=self.verify_name).click()
+        await self.page.get_by_role("button", name="Register").click()
+        return user

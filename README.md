@@ -19,3 +19,6 @@ trace: playwright show-trace trace.zip
 video: pytest test_w2_2.py -sv --log-cli-level=INFO -m smoke/regression --record-video on/failure --slow 500
 dataset: pytest test_w2_2.py -sv --log-cli-level=INFO -k "test_multi_login"
 auth: pytest test_w2_2.py -sv --log-cli-level=INFO -k "test_http_auth"
+
+# To run test_final.py:
+pytest -sv test_final.py --log-cli-level=INFO -n 5

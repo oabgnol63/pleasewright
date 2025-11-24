@@ -95,6 +95,18 @@ async def api_request_context() -> AsyncGenerator[APIRequestContext, None]:
         yield request_context
         await request_context.dispose()
 
+@pytest_asyncio.fixture(scope="function")
+async def api_request_context_final() -> AsyncGenerator[APIRequestContext, None]:
+    headers = {
+        'Content-Type': 'application/json',
+    }
+    async with async_playwright() as pw:
+        request_context = await pw.request.new_context(
+            base_url="https://demoqa.com/", extra_http_headers=headers
+        )
+        yield request_context
+        await request_context.dispose()
+
 @pytest.fixture(scope="function")
 def test_data(request):
     yield request.param
